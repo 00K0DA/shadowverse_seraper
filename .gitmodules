@@ -1,0 +1,3 @@
+[submodule "MyLogger"]
+	path = MyLogger
+	url = https://github.com/00K0DA/MyLogger.git
