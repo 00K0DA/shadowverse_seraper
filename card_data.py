@@ -1,5 +1,4 @@
 import dataclasses
-import urllib.request
 from pathlib import Path
 from typing import Dict, Union
 
@@ -7,6 +6,16 @@ RARITY_BRONZE = 1
 RARITY_SILVER = 2
 RARITY_GOLD = 3
 RARITY_LEGEND = 4
+
+
+def strToRarity(string: str) -> int:
+    if string == "ブロンズレア":
+        return RARITY_SILVER
+    if string == "シルバーレア":
+        return RARITY_SILVER
+    if string == "ゴールドレア":
+        return RARITY_GOLD
+    return RARITY_LEGEND
 
 
 @dataclasses.dataclass(frozen=True)
@@ -47,6 +56,7 @@ class ShadowVerseFollower:
     def toDict(self) -> Dict[str, Union[str, int, Dict[str, Union[str, int]]]]:
         return {
             "base_info": self.base_info.toDict(),
+            "card_type": "Follower",
             "type": self.type,
             "base_hp": self.base_hp,
             "base_attack": self.base_attack,
@@ -77,6 +87,7 @@ class ShadowVerseSpell:
     def toDict(self) -> Dict[str, Union[str, int, None, Dict[str, Union[str, int]]]]:
         return {
             "base_info": self.base_info.toDict(),
+            "card_type": "Spell",
             "effect": self.effect,
             "flavor": self.flavor,
             "image_file_name": self.image_file_name,
@@ -94,19 +105,11 @@ class ShadowVerseAmulet:
     def toDict(self) -> Dict[str, Union[str, int, Dict[str, Union[str, int]]]]:
         return {
             "base_info": self.base_info.toDict(),
+            "card_type": "Amulet",
             "effect": self.effect,
             "flavor": self.flavor,
             "image_file_name": self.image_file_name
         }
-
-
-def saveImage(path: Path, image_url: str, image_name: str):
-    headers = {"User-Agent": "Mozilla/4.0 (compatible; MSIE 5.5; Windows NT)"}
-    request = urllib.request.Request(image_url, headers=headers)
-    with urllib.request.urlopen(request) as web_file:
-        data = web_file.read()
-        with open(Path(path, "{}.png".format(image_name)), mode='wb') as local_file:
-            local_file.write(data)
 
 
 if __name__ == "__main__":
