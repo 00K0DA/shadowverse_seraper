@@ -37,6 +37,9 @@ def main():
     )
     print(card_info)
     print(card_info.toDict())
+    flavor_text = soup.select_one("#cardbody > div.cardPage-cardTextHolder > div:nth-child(2) > p").text
+    print(flavor_text)
+    print(format_flavor(flavor_text))
 
 
 def format_description(description_text: str):
@@ -53,6 +56,18 @@ def format_description(description_text: str):
     description_dict = {i.split(": ")[0]: i.split(": ")[1].replace(" ", "") for i in description_list}
     print(description_dict)
     return description_dict
+
+
+def format_flavor(flavor_text: str):
+    EVOLVED_FLAIR = "EvolvedFlair"
+    flavor_text = flavor_text.replace("Base Flair", "")
+    flavor_text = flavor_text.replace("\n", "")
+    flavor_text = flavor_text.replace(" ", "")
+    if EVOLVED_FLAIR not in flavor_text:
+        return flavor_text, ""
+    else:
+        split_text = flavor_text.split(EVOLVED_FLAIR)
+        return split_text[0], split_text[1]
 
 
 def saveImage(path: Path, image_url: str, image_name: str):
