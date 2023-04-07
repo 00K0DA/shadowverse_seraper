@@ -1,12 +1,17 @@
-from selenium import webdriver
 from selenium.webdriver.chrome import service as fs
 from pathlib import Path
 from time import sleep
 from SoupMaker import SoupMaker
 import urllib.request
+from seleniumwire import webdriver  # type: ignore
+from typing import Dict, Optional
+
+from selenium.webdriver.chrome.webdriver import WebDriver
+from selenium.webdriver.common.by import By
 
 import card_data
 
+BASE_PATH = Path(__file__).parent
 KEY_TYPE = "Type"
 KEY_RARITY = "Rarity"
 KEY_SET = "Set"
@@ -19,12 +24,11 @@ KEY_EVOLVED_EFFECT = "EvolvedEffect"
 
 
 def main():
-    base_path = Path(__file__).parent
-    service = fs.Service(str(Path(base_path, "chromedriver")))
+    service = fs.Service(str(Path(BASE_PATH, "chromedriver")))
     driver = webdriver.Chrome(service=service)
     soup_maker = SoupMaker()
     driver.get("https://sv.bagoum.com/cards/111741030")
-    sleep(1)
+    sleep(10)
     driver.execute_script("changeLocale('ja');")
     soup = soup_maker.makeSoupFromHtml(driver.page_source)
     description_text = soup.select_one("#cardbody > div.cardPage-cardTextHolder > div:nth-child(1) > p").text
@@ -40,6 +44,12 @@ def main():
     flavor_text = soup.select_one("#cardbody > div.cardPage-cardTextHolder > div:nth-child(2) > p").text
     print(flavor_text)
     print(format_flavor(flavor_text))
+    image_id = driver.current_url.split("/")[-1]
+    if description_dict[KEY_TYPE] == "Follower":
+        save_card_image(driver, image_id)
+        save_raw_image(image_id)
+        save_evolved_card_image(driver, image_id)
+        save_evolved_raw_image(image_id)
 
 
 def format_description(description_text: str):
@@ -68,6 +78,43 @@ def format_flavor(flavor_text: str):
     else:
         split_text = flavor_text.split(EVOLVED_FLAIR)
         return split_text[0], split_text[1]
+
+
+def save_card_image(driver, image_code: str):
+    image_url = "https://sv.bagoum.com/cardF/ja/c/{}".format(image_code)
+    image_name = "{}_c.png".format(image_code)
+    image_path = Path(BASE_PATH, "cardImage", image_name)
+    driver.get(image_url)
+
+    # URLに「original.jpg」が含まるリクエストを取得する
+    results = [item for item in driver.requests if '.png' in item.url]
+    if len(results) == 0:
+        raise Exception('original.jpgが見つかりませんでした')
+
+    # リクエスト情報にある取得データを保存する
+    with open(image_path, 'wb') as f:
+        f.write(results[0].response.body)
+
+
+def save_evolved_card_image(driver: WebDriver, image_code: str):
+    image_path = Path(BASE_PATH, "cardImage")
+    image_url = "https://sv.bagoum.com/cardF/ja/e/{}".format(image_code)
+    image_name = "{}_e".format(image_code)
+    saveImage(image_path, image_url, image_name)
+
+
+def save_raw_image(image_code: str):
+    image_path = Path(BASE_PATH, "rawImage")
+    image_url = "https://sv.bagoum.com/getRawImage/0/0/{}".format(image_code)
+    image_name = "{}_c".format(image_code)
+    saveImage(image_path, image_url, image_name)
+
+
+def save_evolved_raw_image(image_code: str):
+    image_path = Path(BASE_PATH, "rawImage")
+    image_url = "https://sv.bagoum.com/getRawImage/1/0/{}".format(image_code)
+    image_name = "{}_e".format(image_code)
+    saveImage(image_path, image_url, image_name)
 
 
 def saveImage(path: Path, image_url: str, image_name: str):
