@@ -1,9 +1,10 @@
+from selenium import webdriver
 from selenium.webdriver.chrome import service as fs
 from pathlib import Path
 from time import sleep
-from SoupMaker import SoupMaker
+from SoupMaker import SoupMaker  # type: ignore
 import urllib.request
-from seleniumwire import webdriver  # type: ignore
+import requests  # type: ignore
 from typing import Dict, Optional
 
 from selenium.webdriver.chrome.webdriver import WebDriver
@@ -27,8 +28,16 @@ def main():
     service = fs.Service(str(Path(BASE_PATH, "chromedriver")))
     driver = webdriver.Chrome(service=service)
     soup_maker = SoupMaker()
+    print("-----------")
     driver.get("https://sv.bagoum.com/cards/111741030")
+    driver.execute_script("changeLocale('ja');")
     sleep(10)
+    scrape_card("https://sv.bagoum.com/cards/111741030", driver, soup_maker)
+
+
+def scrape_card(url: str, driver: WebDriver, soup_maker: SoupMaker):
+    driver.get(url)
+    sleep(1)
     driver.execute_script("changeLocale('ja');")
     soup = soup_maker.makeSoupFromHtml(driver.page_source)
     description_text = soup.select_one("#cardbody > div.cardPage-cardTextHolder > div:nth-child(1) > p").text
@@ -44,7 +53,17 @@ def main():
     flavor_text = soup.select_one("#cardbody > div.cardPage-cardTextHolder > div:nth-child(2) > p").text
     print(flavor_text)
     print(format_flavor(flavor_text))
+    voice_tr_list = soup.select("#cardbody > div.cardPage-voiceHolder > table > tbody > tr")[1:]
+
     image_id = driver.current_url.split("/")[-1]
+
+    if len(voice_tr_list) != 0:
+        for voice_tr in voice_tr_list:
+            td_list = voice_tr.select("td")
+            audio_tag = td_list[0].text.strip()
+            audio_url = td_list[1].select_one("audio > source").get("src")
+            saveAudio(Path(BASE_PATH, "audio"), audio_url, "{}_{}".format(image_id, audio_tag))
+
     if description_dict[KEY_TYPE] == "Follower":
         save_card_image(driver, image_id)
         save_raw_image(image_id)
@@ -80,20 +99,15 @@ def format_flavor(flavor_text: str):
         return split_text[0], split_text[1]
 
 
-def save_card_image(driver, image_code: str):
+def save_card_image(driver: WebDriver, image_code: str):
     image_url = "https://sv.bagoum.com/cardF/ja/c/{}".format(image_code)
-    image_name = "{}_c.png".format(image_code)
+    image_name = "{}_c".format(image_code)
     image_path = Path(BASE_PATH, "cardImage", image_name)
     driver.get(image_url)
-
-    # URLに「original.jpg」が含まるリクエストを取得する
-    results = [item for item in driver.requests if '.png' in item.url]
-    if len(results) == 0:
-        raise Exception('original.jpgが見つかりませんでした')
-
-    # リクエスト情報にある取得データを保存する
-    with open(image_path, 'wb') as f:
-        f.write(results[0].response.body)
+    img = driver.find_element(By.TAG_NAME, 'img')
+    driver.execute_script("arguments[0].style='background: #00FF00;';", img)
+    with open(image_path, "wb") as f:
+        f.write(img.screenshot_as_png)
 
 
 def save_evolved_card_image(driver: WebDriver, image_code: str):
@@ -123,6 +137,16 @@ def saveImage(path: Path, image_url: str, image_name: str):
     with urllib.request.urlopen(request) as web_file:
         data = web_file.read()
         with open(Path(path, "{}.png".format(image_name)), mode='wb') as local_file:
+            local_file.write(data)
+
+
+def saveAudio(path: Path, audio_url: str, audio_name: str):
+    headers = {"User-Agent": "Mozilla/4.0 (compatible; MSIE 5.5; Windows NT)"}
+    print("https://sv.bagoum.com" + audio_url)
+    request = urllib.request.Request("https://sv.bagoum.com" + audio_url, headers=headers)
+    with urllib.request.urlopen(request) as web_file:
+        data = web_file.read()
+        with open(Path(path, "{}.mp3".format(audio_name)), mode='wb') as local_file:
             local_file.write(data)
 
 
